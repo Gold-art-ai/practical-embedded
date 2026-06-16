@@ -1,0 +1,11 @@
++-----------------+       (Hardware Wire)       +-------------------+
+|  DHT11 Sensor   | --------------------------> |    Arduino Uno    |
+| (Blue Grid/Pin2)|                             | (Scrolling Name)  |
++-----------------+                             +-------------------+
+                                                          |
+                                                          | (USB Cable)
+                                                          v
++-----------------+       (MQTT Protocol)       +-------------------+
+| Cloud VPS       | <-------------------------- |    PC Gateway     |
+| (MQTT Broker)   |      Topic: "home/..."      | (Python Script)   |
++-----------------+                             +-------------------+
