@@ -41,4 +41,4 @@ This is how the data moves through the system from the room to the cloud:
 ## 🎛️ Network Info
 * **Baud Rate:** 9600 (USB Speed)
 * **MQTT Port:** 1883
-* **MQTT Topic:** `home/temperature`
+* **MQTT Topic:** `home/temperature`"# practical-embedded" 
