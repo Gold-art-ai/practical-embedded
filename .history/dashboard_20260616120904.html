@@ -1,0 +1,342 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>IoT Dashboard | Cyber-Lime Edition</title>
+
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;600;700&display=swap" rel="stylesheet">
+<link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css" rel="stylesheet">
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/paho-mqtt/1.0.1/mqttws31.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@3.7.1/dist/chart.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/moment@2.29.1/moment.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-moment@1.0.0/dist/chartjs-adapter-moment.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-streaming@2.0.0/dist/chartjs-plugin-streaming.min.js"></script>
+
+<style>
+    :root {
+        --bg-color: #0a0a0f;
+        --card-bg: #161625;
+        --card-border: #2d2d44;
+        --accent-temp: #ccff00;
+        --accent-hum: #a78bfa;
+        --text-primary: #ffffff;
+        --text-secondary: #94a3b8;
+        --success: #00ff9d;
+        --danger: #ff4757;
+    }
+
+    * { 
+        box-sizing: border-box; 
+        transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    body {
+        font-family: 'Plus Jakarta Sans', sans-serif;
+        background-color: var(--bg-color);
+        background-image: radial-gradient(circle at 0% 0%, #1e1b4b 0%, var(--bg-color) 70%);
+        color: var(--text-primary);
+        margin: 0;
+        padding: 2rem;
+        min-height: 100vh;
+    }
+
+    .container {
+        max-width: 1100px;
+        margin: 0 auto;
+    }
+
+    header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 2.5rem;
+    }
+
+    h1 {
+        margin: 0;
+        font-size: 1.4rem;
+        font-weight: 700;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+    }
+
+    .status-pill {
+        background: rgba(22, 22, 37, 0.8);
+        backdrop-filter: blur(10px);
+        padding: 10px 20px;
+        border-radius: 99px;
+        font-size: 0.75rem;
+        font-weight: 700;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        border: 1px solid var(--card-border);
+    }
+
+    .status-dot {
+        height: 10px;
+        width: 10px;
+        border-radius: 50%;
+        background-color: #334155;
+    }
+
+    .connected .status-dot {
+        background-color: var(--success);
+        box-shadow: 0 0 15px var(--success);
+        animation: pulse 2s infinite;
+    }
+
+    .disconnected .status-dot {
+        background-color: var(--danger);
+        box-shadow: 0 0 15px var(--danger);
+    }
+
+    @keyframes pulse {
+        0% { transform: scale(0.9); opacity: 1; }
+        50% { transform: scale(1.1); opacity: 0.6; }
+        100% { transform: scale(0.9); opacity: 1; }
+    }
+
+    .dashboard-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+        gap: 1.5rem;
+        margin-bottom: 1.5rem;
+    }
+
+    .card {
+        background: var(--card-bg);
+        border-radius: 24px;
+        padding: 1.8rem;
+        border: 1px solid var(--card-border);
+        box-shadow: 0 20px 40px -15px rgba(0,0,0,0.5);
+    }
+
+    .card-header {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-bottom: 1.2rem;
+        color: var(--text-secondary);
+        font-size: 0.75rem;
+        font-weight: 800;
+        text-transform: uppercase;
+        letter-spacing: 0.1em;
+    }
+
+    .metric-value {
+        font-size: 4rem;
+        font-weight: 800;
+        margin-bottom: 0.5rem;
+    }
+
+    #temperature { color: var(--accent-temp); text-shadow: 0 0 30px rgba(204, 255, 0, 0.15); }
+    #humidity { color: var(--accent-hum); text-shadow: 0 0 30px rgba(167, 139, 250, 0.15); }
+
+    .metric-unit {
+        font-size: 1.5rem;
+        color: var(--text-secondary);
+        font-weight: 500;
+    }
+
+    .metric-meta {
+        font-size: 0.7rem;
+        color: var(--text-secondary);
+        margin-top: 1.5rem;
+        display: flex;
+        justify-content: space-between;
+        padding-top: 1rem;
+        border-top: 1px solid var(--card-border);
+    }
+
+    .controls-wrapper {
+        display: flex;
+        gap: 12px;
+    }
+
+    .btn {
+        flex: 1;
+        border: none;
+        padding: 18px;
+        border-radius: 16px;
+        color: white;
+        font-size: 0.8rem;
+        font-weight: 800;
+        cursor: pointer;
+        background: #1e1e2f;
+        border: 1px solid var(--card-border);
+    }
+
+    .btn:hover { background: #25253d; transform: translateY(-2px); }
+
+    .btn.on-btn.active-state {
+        background: rgba(0, 255, 157, 0.1);
+        border-color: var(--success);
+        color: var(--success);
+        box-shadow: 0 0 20px rgba(0, 255, 157, 0.2);
+    }
+
+    .btn.off-btn.active-state {
+        background: rgba(255, 71, 87, 0.1);
+        border-color: var(--danger);
+        color: var(--danger);
+        box-shadow: 0 0 20px rgba(255, 71, 87, 0.2);
+    }
+
+    .led-status-text {
+        margin-top: 1.2rem;
+        font-size: 0.7rem;
+        color: var(--text-secondary);
+        text-align: center;
+        background: rgba(0,0,0,0.3);
+        padding: 10px;
+        border-radius: 12px;
+    }
+
+    .chart-card { grid-column: 1 / -1; }
+    .chart-wrapper { height: 320px; width: 100%; margin-top: 1rem; }
+
+    @media (max-width: 650px) {
+        body { padding: 1rem; }
+        .metric-value { font-size: 3rem; }
+        .dashboard-grid { grid-template-columns: 1fr; }
+    }
+</style>
+</head>
+<body>
+
+<div class="container">
+    <header>
+        <h1><i class="bi bi-shield-check" style="color: var(--accent-temp);"></i> CORE SYSTEM</h1>
+        <div id="status-container" class="status-pill">
+            <div class="status-dot"></div>
+            <span id="mqtt-status-text">CONNECTING</span>
+        </div>
+    </header>
+
+    <div class="dashboard-grid">
+        <div class="card">
+            <div class="card-header"><i class="bi bi-thermometer-sun"></i> Temperature</div>
+            <div class="metric-value"><span id="temperature">--</span><span class="metric-unit">°C</span></div>
+            <div class="metric-meta"><span>STATION-01</span><span id="ts-temp">WAITING</span></div>
+        </div>
+
+        <div class="card">
+            <div class="card-header"><i class="bi bi-water"></i> Humidity</div>
+            <div class="metric-value"><span id="humidity">--</span><span class="metric-unit">%</span></div>
+            <div class="metric-meta"><span>STATION-01</span><span id="ts-hum">WAITING</span></div>
+        </div>
+
+        <div class="card">
+            <div class="card-header"><i class="bi bi-cpu"></i> System Actuator</div>
+            <div class="controls-wrapper">
+                <button class="btn on-btn" id="led-on">ACTIVATE</button>
+                <button class="btn off-btn" id="led-off">STANDBY</button>
+            </div>
+            <div class="led-status-text">STATUS: <strong id="led-state">UNKNOWN</strong></div>
+        </div>
+
+        <div class="card chart-card">
+            <div class="card-header"><i class="bi bi-activity"></i> Data Stream Analytics</div>
+            <div class="chart-wrapper"><canvas id="sensor-chart"></canvas></div>
+        </div>
+    </div>
+</div>
+
+<script>
+    const clientID = "web_ui_" + Math.random().toString(16).slice(2, 10);
+    const host = "157.173.101.159"; // Your VPS IP Address
+    const wsPort = ;            // Your configured WebSockets port 
+    const TOPIC_DATA = "sensors/dht";
+    const TOPIC_LED_CMD = "control/led";
+    const TOPIC_LED_STATE = "control/led/status";
+
+    const client = new Paho.MQTT.Client(host, wsPort, clientID);
+
+    // Chart Configuration
+    Chart.defaults.color = '#64748b';
+    Chart.defaults.borderColor = 'rgba(255,255,255,0.05)';
+    const ctx = document.getElementById("sensor-chart").getContext("2d");
+    const chart = new Chart(ctx, {
+        type: "line",
+        plugins: [ChartStreaming],
+        data: {
+            datasets: [
+                { label: "Temp", data: [], borderColor: '#ccff00', tension: 0.4, borderWidth: 3, pointRadius: 0 },
+                { label: "Humid", data: [], borderColor: '#a78bfa', tension: 0.4, borderWidth: 3, pointRadius: 0 }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                x: { type: "realtime", realtime: { duration: 60000, refresh: 1000, delay: 1000 } },
+                y: { beginAtZero: true }
+            }
+        }
+    });
+
+    function updateConnectionStatus(isConnected, message) {
+        document.getElementById("mqtt-status-text").textContent = message.toUpperCase();
+        document.getElementById("status-container").className = isConnected ? "status-pill connected" : "status-pill disconnected";
+    }
+
+    function updateLEDUI(state) {
+        const s = (state || "").toUpperCase();
+        document.getElementById("led-state").textContent = s;
+        document.getElementById("led-on").className = s === "ON" ? "btn on-btn active-state" : "btn on-btn";
+        document.getElementById("led-off").className = s === "OFF" ? "btn off-btn active-state" : "btn off-btn";
+    }
+
+    client.onMessageArrived = (message) => {
+        const t = message.destinationName;
+        if (t === TOPIC_DATA) {
+            try {
+                const data = JSON.parse(message.payloadString);
+                const now = Date.now();
+                if (typeof data.temperature === "number") {
+                    document.getElementById("temperature").textContent = data.temperature.toFixed(1);
+                    chart.data.datasets[0].data.push({ x: now, y: data.temperature });
+                }
+                if (typeof data.humidity === "number") {
+                    document.getElementById("humidity").textContent = data.humidity.toFixed(0);
+                    chart.data.datasets[1].data.push({ x: now, y: data.humidity });
+                }
+                document.getElementById("ts-temp").textContent = new Date().toLocaleTimeString();
+                document.getElementById("ts-hum").textContent = new Date().toLocaleTimeString();
+                chart.update("quiet");
+            } catch (e) {}
+        } else if (t === TOPIC_LED_STATE) {
+            updateLEDUI(message.payloadString);
+        }
+    };
+
+    client.onConnectionLost = () => updateConnectionStatus(false, "Offline");
+
+    client.connect({
+        onSuccess: () => {
+            updateConnectionStatus(true, "System Live");
+            client.subscribe(TOPIC_DATA);
+            client.subscribe(TOPIC_LED_STATE);
+        },
+        onFailure: (err) => updateConnectionStatus(false, "Link Failed")
+    });
+
+    // Button Interaction Mappings
+    document.getElementById("led-on").onclick = () => {
+        const msg = new Paho.MQTT.Message("ON");
+        msg.destinationName = TOPIC_LED_CMD;
+        client.send(msg);
+    };
+
+    document.getElementById("led-off").onclick = () => {
+        const msg = new Paho.MQTT.Message("OFF");
+        msg.destinationName = TOPIC_LED_CMD;
+        client.send(msg);
+    };
+</script>
+</body>
+</html>

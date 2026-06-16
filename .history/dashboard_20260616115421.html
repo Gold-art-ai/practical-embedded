@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IoT Telemetry Dashboard</title>
+    <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f4f7f6;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+        }
+        .dashboard {
+            background: white;
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+            text-align: center;
+            width: 350px;
+        }
+        h1 { color: #333; margin-bottom: 5px; font-size: 24px; }
+        h3 { color: #777; margin-top: 0; font-weight: 400; font-size: 14px; }
+        .metric-container {
+            margin: 30px 0;
+            padding: 20px;
+            background: #eef2f3;
+            border-radius: 10px;
+        }
+        .label { font-size: 12px; text-transform: uppercase; letter-spacing: 1px; color: #666; }
+        .value { font-size: 48px; font-weight: bold; color: #ff5722; margin-top: 5px; }
+        .status { font-size: 12px; font-weight: bold; padding: 5px 10px; border-radius: 20px; display: inline-block; }
+        .connected { background: #e8f5e9; color: #2e7d32; }
+        .disconnected { background: #ffebee; color: #c62828; }
+    </style>
+</head>
+<body>
+
+<div class="dashboard">
+    <h1>🌡️ Real-Time Telemetry</h1>
+    <h3 id="operator">Monitor Operator: Ishara Gold</h3>
+    
+    <div class="metric-container">
+        <div class="label" id="timestamp">Live Temperature</div>
+        <div class="value" id="temp-display">--.- °C</div>
+    </div>
+
+    <div id="status-tag" class="status disconnected">Connecting to VPS...</div>
+</div>
+
+<script>
+    // ==================== CONFIGURATION ====================
+    // 1. Change to your VPS IP address
+    const VPS_IP = "broker.benax.rw"; 
+    // 2. Use your MQTT WebSocket Port (usually 8083 or 9001)
+    const WS_PORT = "8083"; 
+    const TOPIC = "home/temperature";
+    // =======================================================
+
+    const statusTag = document.getElementById('status-tag');
+    const tempDisplay = document.getElementById('temp-display');
+    const timestampLabel = document.getElementById('timestamp');
+
+    // Connect to the MQTT Broker over WebSockets
+    const client = mqtt.connect(`ws://${VPS_IP}:${WS_PORT}`);
+
+    client.on('connect', () => {
+        statusTag.textContent = "✅ Connected to VPS Broker";
+        statusTag.className = "status connected";
+        client.subscribe(TOPIC);
+    });
+
+    client.on('message', (topic, message) => {
+        if (topic === TOPIC) {
+            const tempValue = parseFloat(message.toString());
+            const now = new Date().toLocaleTimeString();
+            
+            // Update the HTML display in real-time
+            tempDisplay.textContent = `${tempValue.toFixed(1)} °C`;
+            timestampLabel.textContent = `Live Temp (Last updated: ${now})`;
+        }
+    });
+
+    client.on('error', (err) => {
+        statusTag.textContent = "❌ Connection Failed";
+        statusTag.className = "status disconnected";
+        console.error(err);
+    });
+</script>
+
+</body>
+</html>
