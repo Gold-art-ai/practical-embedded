@@ -4,7 +4,7 @@ import json
 import paho.mqtt.client as mqtt
 
 # ==================== CONFIGURATION ====================
-SERIAL_PORT = 'COM4'  # <-- Double check your actual Arduino port!
+SERIAL_PORT = 'COM3'  # <-- Double check your actual Arduino port!
 BAUD_RATE = 9600
 MQTT_BROKER = "157.173.101.159"  # Your VPS IP
 MQTT_PORT = 1883
